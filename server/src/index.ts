@@ -4,7 +4,9 @@ dotenv.config({ path: 'config.env' });
 import mongoose from 'mongoose';
 import SeedData from './helpers/seed-data';
 
-const mongodbUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/RouteTracker';
+console.log(process.env.MONGODB_URI)
+
+const mongodbUri = process.env.MONGODB_URI || 'mongodb+srv://route-tracker-admin:AeQrAcVrwyI2P0yZ@routetracker.a2pjjxg.mongodb.net/RouteTracker';
 mongoose.connect(mongodbUri);
 mongoose.connection.once('connected', async () => {
   console.log('Database connected');
@@ -13,7 +15,6 @@ mongoose.connection.once('connected', async () => {
 mongoose.connection.on('error', (error) => {
     console.error(error);
 });
-mongoose.set('strictQuery', true);
 
 import bodyParser from 'body-parser';
 import cors from 'cors';

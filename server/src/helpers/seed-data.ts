@@ -37,7 +37,7 @@ export default async () => {
     console.log('=> Seed route status data successful!');
 
     console.log('Seed user data');
-    let admin = await UserModel.findOne({ name: 'admin' });
+    let admin = await UserModel.findOne({ username: 'admin' });
     if(!admin) {
       admin = new UserModel({
         username: 'admin',
@@ -46,6 +46,16 @@ export default async () => {
         status: 'ACTIVE'
       });
       await admin.save();
+    }
+    let admin2 = await UserModel.findOne({ username: 'admin2' });
+    if(!admin2) {
+      admin2 = new UserModel({
+        username: 'admin2',
+        password: bcryptJS.hashSync('admin2@123', 10),
+        last_name: 'Admin2',
+        status: 'ACTIVE'
+      });
+      await admin2.save();
     }
     console.log('=> Seed user data successful!');
   }

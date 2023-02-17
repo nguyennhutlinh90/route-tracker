@@ -11,14 +11,65 @@ import { Types } from 'mongoose';
 
 const RouteRouter = express.Router();
 
+RouteRouter.route('/route').get(async (req, res) => {
+  try {
+    // Remove after login
+    const admin = await UserModel.findOne({ username: 'admin' });
+    if(!admin)
+      throw `User 'admin' was not found`;
+    
+      const routes = await RouteModel.aggregate([
+        {
+          $match: {
+            $and: [
+              { user_id: new Types.ObjectId(admin.id) },
+              {
+                $or: [
+                  { state: null },
+                  { state: State.ACTIVE },
+                  // {
+                  //   $and: [
+                  //     { state: { $in: [State.CANCEL, State.FINISH] } },
+                  //     { is_unique: false }
+                  //   ]
+                  // }
+                ]
+              }  
+            ]
+          }
+        },
+        {
+          $lookup: {
+            from: 'destinations',
+            localField: 'destination_id',
+            foreignField: '_id',
+            as: 'destinations'
+          }
+        },
+        {
+          $lookup: {
+            from: 'types',
+            localField: 'type_id',
+            foreignField: '_id',
+            as: 'types'
+          }
+        },
+        { $addFields: { id: '$_id', destination_name: { $first: '$destinations.name' }, type_name: { $first: '$types.name' }, spent_time: { $subtract: ['$end_time', '$start_time'] } } },
+        { $project: { _id: 0, __v: 0, user_id: 0, destinations: 0, types: 0 } }
+      ]);
+
+    res.json(APIResult.ok(routes));
+
+  } catch (err: any) {
+    res.json(APIResult.error(err));
+  }
+});
+
 RouteRouter.route("/route").post(async (req, res) => {
   try {
     if(!req.body || !req.body.destination_id)
       throw 'Destination ID is required';
     
-    if(!req.body.type_id)
-      throw 'Type ID is required';
-
     // Remove after login
     const admin = await UserModel.findOne({ username: 'admin' });
     if(!admin)
@@ -28,9 +79,11 @@ RouteRouter.route("/route").post(async (req, res) => {
     if(!destination)
       throw 'Destination was not found';
 
-    const type = await TypeModel.findOne({ _id: req.body.type_id });
-    if(!type)
-      throw 'Type was not found';
+    if(req.body.type_id) {
+      const type = await TypeModel.findOne({ _id: req.body.type_id });
+      if(!type)
+        throw 'Type was not found';
+    }
 
     const existedRoute = await RouteModel.findOne({ user_id: admin.id, destination_id: req.body.destination_id, state: State.ACTIVE });
     if(existedRoute)
@@ -38,10 +91,58 @@ RouteRouter.route("/route").post(async (req, res) => {
   
     const newRoute = new RouteModel(req.body);
     newRoute.user_id = admin.id;
-    newRoute.state = State.ACTIVE;
     await newRoute.save();
 
     res.json(APIResult.ok(newRoute.toJSON()));
+  } catch (err: any) {
+    res.json(APIResult.error(err));
+  }
+});
+
+RouteRouter.route("/route/create_many").post(async (req, res) => {
+  try {
+    if(!req.body)
+      throw 'Destination ID(s) is required';
+    
+    // Remove after login
+    const admin = await UserModel.findOne({ username: 'admin' });
+    if(!admin)
+      throw `User 'admin' was not found`;
+
+    const newRoutes: any[] = [];
+    const reqRoutes = Array.isArray(req.body) ? req.body : (req.body ? [req.body] : []);
+    for (let i = 0; i < reqRoutes.length; i++) {
+      const reqRoute = reqRoutes[i];
+
+      if(!reqRoute.destination_id)
+        throw 'Destination ID(s) is required';
+
+      const reqRouteDupplicateds = reqRoutes.filter(r => r.destination_id === reqRoute.destination_id)
+      if(reqRouteDupplicateds.length > 1)
+        throw `Destination ID '${reqRoute.destination_id}' is dupplicated in list`;
+
+      const destination = await DestinationModel.findOne({ _id: reqRoute.destination_id });
+      if(!destination)
+        throw `Destination ID '${reqRoute.destination_id}' was not found`;
+
+      if(reqRoute.type_id) {
+        const type = await TypeModel.findOne({ _id: reqRoute.type_id });
+        if(!type)
+          throw `Type ID '${reqRoute.destination_id}' was not found`;
+      }
+
+      const existedRoute = await RouteModel.findOne({ user_id: admin.id, destination_id: destination.id, state: State.ACTIVE });
+      if(existedRoute)
+        throw `Destination '${destination.name}' is activated a route, can not create new route`;
+    
+      const newRoute = new RouteModel(reqRoute);
+      newRoute.user_id = admin.id;
+      newRoutes.push(newRoute);
+    }
+
+    await RouteModel.insertMany(newRoutes)
+    
+    res.json(APIResult.ok(newRoutes));
   } catch (err: any) {
     res.json(APIResult.error(err));
   }
@@ -59,12 +160,10 @@ RouteRouter.route("/route/:id").put(async (req, res) => {
     if(req.body) {
       if(req.body.type_id && req.body.type_id !== route.type_id)
         route.type_id = req.body.type_id;
-      if(req.body.is_system !== undefined && req.body.is_system !== null)
-        route.is_system = req.body.is_system;
-      if(req.body.is_unique !== undefined && req.body.is_unique !== null)
-        route.is_unique = req.body.is_unique;
       if(req.body.state && req.body.state !== route.state)
         route.state = req.body.state;
+      if(req.body.start_time)
+        route.start_time = req.body.start_time;
       if(req.body.end_time)
         route.end_time = req.body.end_time;
     }
@@ -92,37 +191,37 @@ RouteRouter.route('/route/:id').get(async (req, res) => {
           foreignField: '_id',
           as: 'destinations'
         }
-     },
-     {
-      $lookup: {
-        from: 'types',
-        localField: 'type_id',
-        foreignField: '_id',
-        as: 'types'
-      }
-     },
-     {
-      $lookup: {
-        from: 'route_histories',
-        localField: '_id',
-        foreignField: 'route_id',
-        as: 'histories',
-        pipeline: [
-          { 
-            $lookup: {
-              from: 'status',
-              localField: 'status_id',
-              foreignField: '_id',
-              as: 'statuses'
-            }
-          },
-          { $addFields: { id: '$_id', status_name: { $first: '$statuses.name' }, spent_time: { $subtract: ['$end_time', '$start_time'] } } },
-          { $project: { _id: 0, __v: 0, route_id: 0, statuses: 0 } }
-        ]
-      }
-    },
-     { $addFields: { id: '$_id', destination_name: { $first: '$destinations.name' }, type_name: { $first: '$types.name' }, spent_time: { $subtract: ['$end_time', '$start_time'] } } },
-     { $project: { _id: 0, __v: 0, user_id: 0, destinations: 0, types: 0 } }
+      },
+      {
+        $lookup: {
+          from: 'types',
+          localField: 'type_id',
+          foreignField: '_id',
+          as: 'types'
+        }
+      },
+      {
+        $lookup: {
+          from: 'route_histories',
+          localField: '_id',
+          foreignField: 'route_id',
+          as: 'histories',
+          pipeline: [
+            { 
+              $lookup: {
+                from: 'status',
+                localField: 'status_id',
+                foreignField: '_id',
+                as: 'statuses'
+              }
+            },
+            { $addFields: { id: '$_id', status_name: { $first: '$statuses.name' }, spent_time: { $subtract: ['$end_time', '$start_time'] } } },
+            { $project: { _id: 0, __v: 0, route_id: 0, statuses: 0 } }
+          ]
+        }
+      },
+      { $addFields: { id: '$_id', destination_name: { $first: '$destinations.name' }, type_name: { $first: '$types.name' }, spent_time: { $subtract: ['$end_time', '$start_time'] } } },
+      { $project: { _id: 0, __v: 0, user_id: 0, destinations: 0, types: 0 } }
     ]);
     if(!routes || routes.length <= 0)
       throw 'Route was not found';

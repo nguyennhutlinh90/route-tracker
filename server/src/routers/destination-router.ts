@@ -4,6 +4,7 @@ import APIResult from '../models/api-result';
 import DestinationModel from '../models/destination-model';
 import { State } from '../models/enums';
 import UserModel from '../models/user-model';
+import TypeModel from '../models/type-model';
 
 const DestinationRouter = express.Router();
 
@@ -43,6 +44,9 @@ DestinationRouter.route('/destination').get(async (req, res) => {
       },
       { $addFields: { id: '$_id', active_route: { $first: '$routes' } } },
       { $project: { _id: 0, __v: 0, routes: 0 } }
+
+      // { $addFields: { id: '$_id' } },
+      // { $project: { _id: 0, __v: 0 } }
     ]);
 
     res.json(APIResult.ok(destinations));
@@ -56,18 +60,24 @@ DestinationRouter.route("/destination").post(async (req, res) => {
   try {
     if(!req.body || !req.body.name)
       throw 'Destination name is required';
+
+    if(req.body.type_id) {
+      const type = await TypeModel.findOne({ _id: req.body.type_id });
+      if(!type)
+        throw 'Type was not found';
+    }
   
-    const existedRoute = await DestinationModel.findOne({ name: req.body.name });
-    if(existedRoute)
+    const existedDestination = await DestinationModel.findOne({ name: req.body.name });
+    if(existedDestination)
       throw 'Destination name is already in use';
 
     if(!req.body.description)
       req.body.description = req.body.name;
 
-    const newRoute = new DestinationModel(req.body);
-    await newRoute.save();
+    const newDestination = new DestinationModel(req.body);
+    await newDestination.save();
 
-    res.json(APIResult.ok(newRoute.toJSON()));
+    res.json(APIResult.ok(newDestination.toJSON()));
 
   } catch (err: any) {
     res.json(APIResult.error(err));
@@ -79,25 +89,35 @@ DestinationRouter.route("/destination/:id").put(async (req, res) => {
     if(!req.params || !req.params.id)
       throw 'Destination ID is required';
 
-    const route = await DestinationModel.findOne({ _id: req.params.id });
-    if(!route)
+    const destination = await DestinationModel.findOne({ _id: req.params.id });
+    if(!destination)
       throw 'Destination was not found';
 
     if(req.body) {
-      if(req.body.name && req.body.name !== route.name) {
+      if(req.body.name && req.body.name !== destination.name) {
         const existedRoute = await DestinationModel.findOne({ name: req.body.name });
         if(existedRoute)
           throw 'Destination name is already in use';
-        route.name = req.body.name;
+        destination.name = req.body.name;
       }
+      if(req.body.type_id && req.body.type_id !== destination.type_id) {
+        const type = await TypeModel.findOne({ _id: req.body.type_id });
+        if(!type)
+          throw 'Type was not found';
+        destination.type_id = req.body.type_id;
+      }
+      if(req.body.is_system !== undefined && req.body.is_system !== null)
+        destination.is_system = req.body.is_system;
+      if(req.body.is_unique !== undefined && req.body.is_unique !== null)
+        destination.is_unique = req.body.is_unique;
       if(req.body.description)
-        route.description = req.body.description;
-      route.updated_at = new Date();
+        destination.description = req.body.description;
+      destination.updated_at = new Date();
     }
 
-    await DestinationModel.updateOne( { _id: req.params.id }, route);
+    await DestinationModel.updateOne( { _id: req.params.id }, destination);
 
-    res.json(APIResult.ok(route.toJSON()));
+    res.json(APIResult.ok(destination.toJSON()));
 
   } catch (err: any) {
     res.json(APIResult.error(err));
