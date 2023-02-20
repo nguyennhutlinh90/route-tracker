@@ -42,8 +42,16 @@ DestinationRouter.route('/destination').get(async (req, res) => {
           ]
         }
       },
-      { $addFields: { id: '$_id', active_route: { $first: '$routes' } } },
-      { $project: { _id: 0, __v: 0, routes: 0 } }
+      { 
+        $lookup: {
+          from: 'types',
+          localField: 'type_id',
+          foreignField: '_id',
+          as: 'types'
+        }
+      },
+      { $addFields: { id: '$_id', type_name: { $first: '$types.name' }, active_route: { $first: '$routes' } } },
+      { $project: { _id: 0, __v: 0, types: 0, routes: 0 } }
 
       // { $addFields: { id: '$_id' } },
       // { $project: { _id: 0, __v: 0 } }
