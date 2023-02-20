@@ -1,12 +1,8 @@
-import dotenv from 'dotenv';
-dotenv.config({ path: 'config.env' });
-
+import config from './config';
 import mongoose from 'mongoose';
 import SeedData from './helpers/seed-data';
 
-console.log(process.env.MONGODB_URI)
-
-const mongodbUri = process.env.MONGODB_URI || 'mongodb+srv://route-tracker-admin:AeQrAcVrwyI2P0yZ@routetracker.a2pjjxg.mongodb.net/RouteTracker';
+const mongodbUri = config.MONGODB_URI || 'mongodb://localhost:27017/RouteTracker';
 mongoose.connect(mongodbUri);
 mongoose.connection.once('connected', async () => {
   console.log('Database connected');
@@ -35,7 +31,7 @@ import TypeRouter from './routers/type-router';
 import UserRouter from './routers/user-router';
 app.use('/api', [DestinationRouter, GeneralRouter, RouteRouter, StatusRouter, TypeRouter, UserRouter]);
 
-const port = process.env.SERVER_PORT || 5000;
+const port = config.SERVER_PORT || 5001;
 app.listen(port, () => {
   console.log(`Server is running on : http://localhost:${port}`);
 });
