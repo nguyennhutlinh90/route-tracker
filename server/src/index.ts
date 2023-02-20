@@ -2,7 +2,7 @@ import config from './config';
 import mongoose from 'mongoose';
 import SeedData from './helpers/seed-data';
 
-const mongodbUri = config.MONGODB_URI || 'mongodb://localhost:27017/RouteTracker';
+const mongodbUri = config.MONGODB_URI || 'mongodb://127.0.0.1:27017/RouteTracker';
 mongoose.connect(mongodbUri);
 mongoose.connection.once('connected', async () => {
   console.log('Database connected');
@@ -29,7 +29,8 @@ import RouteRouter from './routers/route-router';
 import StatusRouter from './routers/status-router';
 import TypeRouter from './routers/type-router';
 import UserRouter from './routers/user-router';
-app.use('/api', [DestinationRouter, GeneralRouter, RouteRouter, StatusRouter, TypeRouter, UserRouter]);
+app.use('/', [GeneralRouter]);
+app.use('/api', [DestinationRouter, RouteRouter, StatusRouter, TypeRouter, UserRouter]);
 
 const port = config.SERVER_PORT || 5001;
 app.listen(port, () => {
