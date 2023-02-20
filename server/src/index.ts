@@ -15,13 +15,11 @@ mongoose.connection.on('error', (error) => {
 import bodyParser from 'body-parser';
 import cors from 'cors';
 import express from 'express';
-import strongErrorHandler from 'strong-error-handler';
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 app.use(cors());
-app.use(strongErrorHandler({ debug: true }));
 
 import DestinationRouter from './routers/destination-router';
 import GeneralRouter from './routers/general-router';
