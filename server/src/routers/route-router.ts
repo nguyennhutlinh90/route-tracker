@@ -128,7 +128,7 @@ RouteRouter.route("/route/create_many").post(async (req, res) => {
       if(reqRoute.type_id) {
         const type = await TypeModel.findOne({ _id: reqRoute.type_id });
         if(!type)
-          throw `Type ID '${reqRoute.destination_id}' was not found`;
+          throw `Type ID '${reqRoute.type_id}' was not found`;
       }
 
       const existedRoute = await RouteModel.findOne({ user_id: admin.id, destination_id: destination.id, state: State.ACTIVE });

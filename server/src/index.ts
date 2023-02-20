@@ -30,7 +30,7 @@ import UserRouter from './routers/user-router';
 app.use('/', [GeneralRouter]);
 app.use('/api', [DestinationRouter, RouteRouter, StatusRouter, TypeRouter, UserRouter]);
 
-const port = config.SERVER_PORT || 5001;
+const port = process.env.PORT || config.SERVER_PORT || 5001;
 app.listen(port, () => {
   console.log(`Server is running on : http://localhost:${port}`);
 });

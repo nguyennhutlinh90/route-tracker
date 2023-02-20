@@ -64,28 +64,109 @@ DestinationRouter.route('/destination').get(async (req, res) => {
   }
 });
 
+// DestinationRouter.route("/destination").post(async (req, res) => {
+//   try {
+//     if(!req.body || !req.body.name)
+//       throw 'Destination name is required';
+
+//     if(req.body.type_id) {
+//       const type = await TypeModel.findOne({ _id: req.body.type_id });
+//       if(!type)
+//         throw 'Type was not found';
+//     }
+  
+//     const existedDestination = await DestinationModel.findOne({ name: req.body.name });
+//     if(existedDestination)
+//       throw 'Destination name is already in use';
+
+//     if(!req.body.description)
+//       req.body.description = req.body.name;
+
+//     const newDestination = new DestinationModel(req.body);
+//     await newDestination.save();
+
+//     res.json(APIResult.ok(newDestination.toJSON()));
+
+//   } catch (err: any) {
+//     res.json(APIResult.error(err));
+//   }
+// });
+
 DestinationRouter.route("/destination").post(async (req, res) => {
   try {
-    if(!req.body || !req.body.name)
-      throw 'Destination name is required';
+    if(!req.body)
+      throw 'Destination name(s) is required';
 
-    if(req.body.type_id) {
-      const type = await TypeModel.findOne({ _id: req.body.type_id });
-      if(!type)
-        throw 'Type was not found';
+    const newDestinations: any[] = [];
+    const reqDestinations = Array.isArray(req.body) ? req.body : (req.body ? [req.body] : []);
+    for (let i = 0; i < reqDestinations.length; i++) {
+      const reqDestination = reqDestinations[i];
+
+      if(!reqDestination.name)
+        throw 'Destination name(s) is required';
+
+      const reqDestinationDupplicateds = reqDestinations.filter(d => d.name === reqDestination.name)
+      if(reqDestinationDupplicateds.length > 1)
+        throw `Destination name '${reqDestination.name}' is dupplicated in list`;
+
+      if(reqDestination.type_id) {
+        const type = await TypeModel.findOne({ _id: reqDestination.type_id });
+        if(!type)
+          throw `Type ID '${reqDestination.type_id}' was not found`;
+      }
+    
+      const existedDestination = await DestinationModel.findOne({ name: reqDestination.name });
+      if(existedDestination)
+        throw `Destination name '${reqDestination.name}' is already in use`;
+
+      if(!reqDestination.description)
+        reqDestination.description = reqDestination.name;
+      
+      const newDestination = new DestinationModel(reqDestination);
+      newDestinations.push(newDestination);
     }
-  
-    const existedDestination = await DestinationModel.findOne({ name: req.body.name });
-    if(existedDestination)
-      throw 'Destination name is already in use';
 
-    if(!req.body.description)
-      req.body.description = req.body.name;
+    await DestinationModel.insertMany(newDestinations);
 
-    const newDestination = new DestinationModel(req.body);
-    await newDestination.save();
+    res.json(APIResult.ok(newDestinations));
 
-    res.json(APIResult.ok(newDestination.toJSON()));
+  } catch (err: any) {
+    res.json(APIResult.error(err));
+  }
+});
+
+DestinationRouter.route("/destination/create_many").post(async (req, res) => {
+  try {
+    if(!req.body)
+      throw 'Destination name(s) is required';
+
+    const newDestinations: any[] = [];
+    const reqNames = Array.isArray(req.body) ? req.body : (req.body ? [req.body] : []);
+    for (let i = 0; i < reqNames.length; i++) {
+      const reqName = reqNames[i];
+
+      if(!reqName)
+        throw 'Destination name(s) is required';
+
+      const reqNameDupplicateds = reqNames.filter(d => d === reqName)
+      if(reqNameDupplicateds.length > 1)
+        throw `Destination name '${reqName}' is dupplicated in list`;
+
+      const existedDestination = await DestinationModel.findOne({ name: reqName });
+      if(existedDestination)
+        throw `Destination name '${reqName}' is already in use`;
+
+      const newDestination = new DestinationModel();
+      newDestination.name = reqName;
+      newDestination.description = reqName;
+      newDestination.is_system = true;
+      newDestination.is_unique = false;
+      newDestinations.push(newDestination);
+    }
+
+    await DestinationModel.insertMany(newDestinations);
+
+    res.json(APIResult.ok(newDestinations));
 
   } catch (err: any) {
     res.json(APIResult.error(err));
